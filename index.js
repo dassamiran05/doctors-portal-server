@@ -30,6 +30,8 @@ function verifyjwt(req, res, next){
 }
 
 
+
+
 const uri = `mongodb+srv://${process.env.DB_USER}:${process.env.DB_PASSWORD}@cluster0.t4diz.mongodb.net/?retryWrites=true&w=majority`;
 
 const client = new MongoClient(uri, {
@@ -44,6 +46,18 @@ async function run() {
     const servicesCollection = client.db('doctors_portal').collection('services');
     const bookingCollection = client.db('doctors_portal').collection('bookings');
     const userCollection = client.db('doctors_portal').collection('users');
+    const doctorCollection = client.db('doctors_portal').collection('doctors');
+
+    const verifyAdmin =  async(req, res, next) =>{
+      const requester = req.decoded.email;
+      const requesterAccount = await userCollection.findOne({email:requester});
+      if(requesterAccount.role === 'admin'){
+        next();
+      }
+      else{
+        return res.status(403).send({message:'Forbidden Access'});
+      }
+    }
 
 
     /** 
@@ -139,7 +153,7 @@ async function run() {
     // Get all the services
     app.get('/service', async (req, res) => {
       const query = {};
-      const cursor = servicesCollection.find(query);
+      const cursor = servicesCollection.find(query).project({name: 1});
       const services = await cursor.toArray();
       res.send(services);
     })
@@ -170,12 +184,35 @@ async function run() {
           const available = service.slots.filter(slot => !booked.includes(slot));
           // Step 7: Set available to slots to make it earier
           service.slots = available;
-      })
-      
-      
+      }) 
       res.send(services);
     })
 
+
+    //Post Doctor
+    app.post('/doctor', verifyjwt, verifyAdmin, async(req, res) =>{
+      const doctor = req.body;
+      const result = await doctorCollection.insertOne(doctor);
+      res.send(result);
+    });
+
+    // Get Doctors
+    app.get('/doctor', verifyjwt, verifyAdmin, async(req, res) =>{
+      const query = {};
+      // const authHeader = req.headers.authorization;
+      // console.log('Inside token', authHeader);
+      const cursor = doctorCollection.find(query);
+      const doctors = await cursor.toArray();
+      res.send(doctors);
+    });
+
+    //Delete Doctor
+    app.delete('/doctor/:email', verifyjwt, verifyAdmin, async(req, res) =>{
+      const email = req.params.email;
+      const filter = {email: email};
+      const result = doctorCollection.deleteOne(filter);
+      res.send(result);
+    })
   } finally {
 
   }
