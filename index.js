@@ -3,7 +3,8 @@ const cors = require('cors');
 const jwt = require('jsonwebtoken');
 const {
   MongoClient,
-  ServerApiVersion
+  ServerApiVersion,
+  ObjectId
 } = require('mongodb');
 require('dotenv').config();
 const app = express();
@@ -124,6 +125,14 @@ async function run() {
       }else{
         return res.status(403).send({message:'Forbidden Access'});
       }
+    })
+
+    //To get booking info for particular id
+    app.get('/booking/:id', verifyjwt, async(req, res) =>{
+      const id = req.params.id;
+      const query = {_id:ObjectId(id)};
+      const booking = await bookingCollection.findOne(query);
+      res.send(booking); 
     })
 
 
